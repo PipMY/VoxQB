@@ -1077,22 +1077,26 @@ function initTTS() {
     // Load and select best British voice
     setTimeout(() => {
       const voices = speechSynthesis.getVoices();
-      // Priority: British voices > Enhanced UK > Google UK
+      console.log('Available voices:', voices.map(v => `${v.name} (${v.lang})`));
+      
+      // Priority: iOS high-quality British voices first
       selectedVoice = voices.find(v => 
-        (v.lang === 'en-GB' || v.lang === 'en-UK') && 
-        (v.name.includes('Enhanced') || v.name.includes('Premium'))
+        v.name === 'Daniel' || v.name === 'Daniel (Enhanced)'
       ) || voices.find(v => 
-        v.name.includes('Daniel') || // iOS British male
-        v.name.includes('Kate') || // iOS British female
-        v.name.includes('Oliver') || // iOS British
-        v.name.includes('Serena') // iOS British female
+        v.name === 'Kate' || v.name === 'Kate (Enhanced)'
+      ) || voices.find(v => 
+        v.name === 'Oliver' || v.name === 'Oliver (Enhanced)'
+      ) || voices.find(v => 
+        v.name === 'Serena' || v.name === 'Serena (Enhanced)'
+      ) || voices.find(v => 
+        v.name.includes('Google UK English')
+      ) || voices.find(v => 
+        (v.lang === 'en-GB' || v.lang === 'en-UK') && !v.localService
       ) || voices.find(v => 
         v.lang === 'en-GB' || v.lang === 'en-UK'
-      ) || voices.find(v => 
-        v.name.includes('Google UK') || v.name.includes('British')
       ) || voices.find(v => v.lang.startsWith('en')) || voices[0];
       
-      console.log('Selected voice:', selectedVoice?.name, selectedVoice?.lang);
+      console.log('Selected voice:', selectedVoice?.name, selectedVoice?.lang, 'Local:', selectedVoice?.localService);
     }, 100);
   }
 }
