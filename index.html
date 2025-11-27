@@ -695,6 +695,7 @@ let sessionQuestionCount = 0;
 let dailyGoal = 20;
 let weeklyAccuracyGoal = 75;
 let dailyProgress = 0;
+let ttsInitialized = false;
 
 // Stats tracking
 const stats = {
@@ -1067,6 +1068,15 @@ async function fetchTossup() {
   }
 }
 
+function initTTS() {
+  // Initialize TTS on mobile - must be called from user interaction
+  if (!ttsInitialized) {
+    const u = new SpeechSynthesisUtterance('');
+    speechSynthesis.speak(u);
+    ttsInitialized = true;
+  }
+}
+
 function speak(text, onEnd) {
   // Mobile fix: cancel any pending speech
   speechSynthesis.cancel();
@@ -1166,6 +1176,7 @@ let currentSentenceIndex = 0;
 let totalSentences = 0;
 
 document.getElementById("start").onclick = async () => {
+  initTTS(); // Initialize TTS on first user interaction (mobile requirement)
   speechSynthesis.cancel();
   buzzed = false;
   isPaused = false;
