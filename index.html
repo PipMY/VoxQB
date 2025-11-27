@@ -459,9 +459,6 @@
       <input type="range" id="speed-slider" min="0.5" max="2" step="0.1" value="1.1">
       <span id="speed-value">1.1x</span>
     </div>
-    <select id="voice-selector" style="padding: 8px; background: var(--panel); color: white; border: 1px solid var(--border); border-radius: 4px; cursor: pointer;">
-      <option value="">Loading voices...</option>
-    </select>
     <button id="history-btn" class="action-btn">History</button>
     <button id="stats-btn" class="action-btn">Stats</button>
     <button id="goals-btn" class="action-btn" style="background: #7b1fa2;">Goals</button>
@@ -1077,82 +1074,29 @@ function initTTS() {
     speechSynthesis.speak(u);
     ttsInitialized = true;
     
-    // Load voices and populate selector
+    // Load and select best British voice
     setTimeout(() => {
       const voices = speechSynthesis.getVoices();
       console.log('Available voices:', voices.map(v => `${v.name} (${v.lang})`));
       
-      // Populate voice selector dropdown
-      const voiceSelector = document.getElementById('voice-selector');
-      voiceSelector.innerHTML = '';
-      
-      // Group British voices first, then other English
-      const britishVoices = voices.filter(v => v.lang === 'en-GB' || v.lang === 'en-UK');
-      const otherEnglish = voices.filter(v => v.lang.startsWith('en') && v.lang !== 'en-GB' && v.lang !== 'en-UK');
-      
-      if (britishVoices.length > 0) {
-        const ukGroup = document.createElement('optgroup');
-        ukGroup.label = '🇬🇧 British English';
-        britishVoices.forEach((voice, idx) => {
-          const option = document.createElement('option');
-          option.value = idx;
-          option.textContent = `${voice.name} ${voice.localService ? '(Local)' : '(Cloud)'}`;
-          option.dataset.voiceName = voice.name;
-          ukGroup.appendChild(option);
-        });
-        voiceSelector.appendChild(ukGroup);
-      }
-      
-      if (otherEnglish.length > 0) {
-        const enGroup = document.createElement('optgroup');
-        enGroup.label = '🇺🇸 Other English';
-        otherEnglish.forEach((voice, idx) => {
-          const option = document.createElement('option');
-          option.value = britishVoices.length + idx;
-          option.textContent = `${voice.name} (${voice.lang})`;
-          option.dataset.voiceName = voice.name;
-          enGroup.appendChild(option);
-        });
-        voiceSelector.appendChild(enGroup);
-      }
-      
-      const allEnglish = [...britishVoices, ...otherEnglish];
-      
-      // Auto-select best British voice
-      const defaultVoice = allEnglish.find(v => 
+      // Priority: iOS high-quality British voices first
+      selectedVoice = voices.find(v => 
         v.name === 'Daniel' || v.name === 'Daniel (Enhanced)'
-      ) || allEnglish.find(v => 
+      ) || voices.find(v => 
         v.name === 'Kate' || v.name === 'Kate (Enhanced)'
-      ) || allEnglish.find(v => 
-        v.name.includes('Google UK')
-      ) || britishVoices.find(v => !v.localService) || britishVoices[0] || allEnglish[0];
+      ) || voices.find(v => 
+        v.name === 'Oliver' || v.name === 'Oliver (Enhanced)'
+      ) || voices.find(v => 
+        v.name === 'Serena' || v.name === 'Serena (Enhanced)'
+      ) || voices.find(v => 
+        v.name.includes('Google UK English')
+      ) || voices.find(v => 
+        (v.lang === 'en-GB' || v.lang === 'en-UK') && !v.localService
+      ) || voices.find(v => 
+        v.lang === 'en-GB' || v.lang === 'en-UK'
+      ) || voices.find(v => v.lang.startsWith('en')) || voices[0];
       
-      if (defaultVoice) {
-        selectedVoice = defaultVoice;
-        const idx = allEnglish.indexOf(defaultVoice);
-        voiceSelector.selectedIndex = idx;
-        console.log('Auto-selected voice:', selectedVoice.name, selectedVoice.lang);
-      }
-      
-      // Voice selector change handler
-      voiceSelector.onchange = (e) => {
-        const idx = parseInt(e.target.value);
-        selectedVoice = allEnglish[idx];
-        console.log('Manually selected voice:', selectedVoice?.name);
-        localStorage.setItem('qbSelectedVoice', selectedVoice?.name);
-      };
-      
-      // Restore saved voice preference
-      const savedVoiceName = localStorage.getItem('qbSelectedVoice');
-      if (savedVoiceName) {
-        const savedVoice = allEnglish.find(v => v.name === savedVoiceName);
-        if (savedVoice) {
-          selectedVoice = savedVoice;
-          const idx = allEnglish.indexOf(savedVoice);
-          voiceSelector.selectedIndex = idx;
-          console.log('Restored saved voice:', savedVoiceName);
-        }
-      }
+      console.log('Selected voice:', selectedVoice?.name, selectedVoice?.lang, 'Local:', selectedVoice?.localService);
     }, 100);
   }
 }
