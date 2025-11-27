@@ -694,6 +694,7 @@ let weeklyAccuracyGoal = 75;
 let dailyProgress = 0;
 let ttsInitialized = false;
 let inGracePeriod = false;
+let selectedVoice = null;
 
 // Stats tracking
 const stats = {
@@ -1072,6 +1073,27 @@ function initTTS() {
     const u = new SpeechSynthesisUtterance('');
     speechSynthesis.speak(u);
     ttsInitialized = true;
+    
+    // Load and select best British voice
+    setTimeout(() => {
+      const voices = speechSynthesis.getVoices();
+      // Priority: British voices > Enhanced UK > Google UK
+      selectedVoice = voices.find(v => 
+        (v.lang === 'en-GB' || v.lang === 'en-UK') && 
+        (v.name.includes('Enhanced') || v.name.includes('Premium'))
+      ) || voices.find(v => 
+        v.name.includes('Daniel') || // iOS British male
+        v.name.includes('Kate') || // iOS British female
+        v.name.includes('Oliver') || // iOS British
+        v.name.includes('Serena') // iOS British female
+      ) || voices.find(v => 
+        v.lang === 'en-GB' || v.lang === 'en-UK'
+      ) || voices.find(v => 
+        v.name.includes('Google UK') || v.name.includes('British')
+      ) || voices.find(v => v.lang.startsWith('en')) || voices[0];
+      
+      console.log('Selected voice:', selectedVoice?.name, selectedVoice?.lang);
+    }, 100);
   }
 }
 
@@ -1089,8 +1111,14 @@ function speak(text, onEnd) {
   
   const u = new SpeechSynthesisUtterance(plain);
   u.rate = ttsSpeed;
-  u.lang = 'en-US';
+  u.lang = 'en-GB'; // British English
   u.volume = 1;
+  u.pitch = 1;
+  
+  // Use selected high-quality voice if available
+  if (selectedVoice) {
+    u.voice = selectedVoice;
+  }
   
   u.onend = onEnd;
   u.onerror = (e) => {
