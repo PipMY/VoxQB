@@ -693,6 +693,7 @@ let dailyGoal = 20;
 let weeklyAccuracyGoal = 75;
 let dailyProgress = 0;
 let ttsInitialized = false;
+let inGracePeriod = false;
 
 // Stats tracking
 const stats = {
@@ -1179,6 +1180,7 @@ document.getElementById("start").onclick = async () => {
   isPaused = false;
   powerMarkPassed = false;
   currentSentenceIndex = 0;
+  inGracePeriod = false;
   document.getElementById("answer-box").classList.add("hidden");
   document.getElementById("question-text").innerHTML = "Fetching...";
   document.getElementById("status-text").textContent = "Loading...";
@@ -1229,10 +1231,19 @@ document.getElementById("start").onclick = async () => {
     
     if (buzzed || idx >= sentences.length) {
       if(!buzzed) {
+        inGracePeriod = true;
         document.getElementById("question-text").innerHTML = highlightClues(currentQuestionText);
-        document.getElementById("status-text").textContent = "Finished.";
-        showAnswer(currentAnswer);
+        document.getElementById("status-text").textContent = "3 seconds to buzz...";
         document.getElementById("pause-btn").disabled = true;
+        
+        // 3 second grace period after question ends - no neg penalty
+        setTimeout(() => {
+          if (!buzzed) {
+            inGracePeriod = false;
+            document.getElementById("status-text").textContent = "Time's up!";
+            showAnswer(currentAnswer);
+          }
+        }, 3000);
       }
       return;
     }
@@ -1297,15 +1308,19 @@ document.getElementById("correct").onclick = () => {
 };
 
 document.getElementById("incorrect").onclick = () => {
-  updateScore(-5);
+  // No neg penalty during grace period (3 seconds after question ends)
+  if (!inGracePeriod) {
+    updateScore(-5);
+    stats.negs++;
+  }
   playSound('incorrect');
   
   stats.totalAnswered++;
   stats.incorrect++;
-  stats.negs++;
   
   currentStreak = 0;
   document.getElementById('streak').textContent = currentStreak;
+  inGracePeriod = false;
   
   updateCategoryStats(currentQuestion.category, false, false);
   updateDifficultyStats(currentQuestion.difficulty, false, false);
