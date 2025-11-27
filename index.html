@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>QBReader Practice (Local)</title>
+  <meta name="description" content="VoxQB - Interactive Quiz Bowl practice with text-to-speech, advanced filtering, and performance tracking" />
+  <meta name="author" content="VoxQB" />
+  <title>VoxQB - Quizzing Practice</title>
   <style>
     :root {
       --bg: #222;
@@ -435,6 +437,9 @@
 <body>
 
 <div class="controls-container">
+  <h1 style="text-align: center; margin-bottom: 8px; color: var(--accent); font-size: 2.5rem; font-weight: bold;">VoxQB</h1>
+  <p style="text-align: center; margin-top: 0; margin-bottom: 25px; color: #999; font-size: 0.95rem; font-style: italic;">Interactive Quiz Bowl Practice with Text-to-Speech</p>
+  
   <div class="top-controls">
     <select id="difficulty">
       <option value="">Any Difficulty</option>
@@ -801,6 +806,8 @@ function updateDailyProgress() {
     dailyProgress = parseInt(localStorage.getItem('qbDailyProgress') || '0');
   }
   
+  const wasAtGoal = dailyProgress >= dailyGoal;
+  
   dailyProgress++;
   localStorage.setItem('qbDailyProgress', dailyProgress.toString());
   
@@ -808,8 +815,8 @@ function updateDailyProgress() {
   document.getElementById('daily-progress').textContent = `${dailyProgress}/${dailyGoal}`;
   document.getElementById('daily-progress-bar').style.width = percent + '%';
   
-  if (dailyProgress >= dailyGoal && dailyProgress === parseInt(localStorage.getItem('qbDailyProgress'))) {
-    setTimeout(() => alert('\ud83c\udf89 Daily goal reached! Great work!'), 500);
+  if (!wasAtGoal && dailyProgress >= dailyGoal) {
+    setTimeout(() => alert('🎉 Daily goal reached! Great work!'), 500);
   }
 }
 
@@ -1023,7 +1030,9 @@ function updateSummary() {
 // --- Game Logic ---
 async function fetchTossup() {
   const diff = document.getElementById("difficulty").value;
-  let baseUrl = "http://localhost:3000/api/tossup"; 
+  // Production Railway backend
+  let baseUrl = "https://mimirqb-production.up.railway.app/api/tossup"; 
+  // For local testing, use: "http://localhost:3000/api/tossup"
 
   const params = [];
   if (diff) params.push(`difficulties=${diff}`);
@@ -1034,13 +1043,34 @@ async function fetchTossup() {
   const url = baseUrl + (params.length ? "?" + params.join("&") : "");
   
   try {
-    const res = await fetch(url);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    
+    const res = await fetch(url, { 
+      signal: controller.signal,
+      mode: 'cors',
+      headers: { 'Accept': 'application/json' }
+    });
+    clearTimeout(timeoutId);
+    
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     return data.tossups ? data.tossups[0] : data;
-  } catch(e) { console.error(e); return null; }
+  } catch(e) { 
+    console.error('Fetch error:', e);
+    if (e.name === 'AbortError') {
+      alert('⚠️ Request timeout. Railway may be waking up - try again in 5 seconds.');
+    } else {
+      alert('⚠️ Connection error: ' + e.message + '\n\nTry refreshing the page.');
+    }
+    return null; 
+  }
 }
 
 function speak(text, onEnd) {
+  // Mobile fix: cancel any pending speech
+  speechSynthesis.cancel();
+  
   const plain = text
     .replace(/<[^>]*>/g, " ")
     .replace(/\[[^\]]*\]/g, " ")
@@ -1048,10 +1078,20 @@ function speak(text, onEnd) {
     .replace(/\{[^}]*\}/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+  
   const u = new SpeechSynthesisUtterance(plain);
   u.rate = ttsSpeed;
+  u.lang = 'en-US';
+  u.volume = 1;
+  
   u.onend = onEnd;
-  speechSynthesis.speak(u);
+  u.onerror = (e) => {
+    console.error('TTS Error:', e);
+    if (onEnd) onEnd();
+  };
+  
+  // Mobile Safari fix: small delay
+  setTimeout(() => speechSynthesis.speak(u), 10);
 }
 
 function highlightClues(text) {
